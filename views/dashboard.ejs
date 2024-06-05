@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+    <!-- Include Bootstrap CSS -->
+    <link href="/node_modules/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>Welcome <%= user.username %></h1>
+     
+        <p>Your username is: <%= user.username %></p>
+
+        <!-- Only display the Register Admin button if the user is a superadmin -->
+        <% if (user.role === 'superadmin') { %>
+            <a href="/register" class="btn btn-primary mt-3">Register Admin</a>
+        <% } %>
+
+        <!-- Logout Button -->
+        <button onclick="logout()" class="btn btn-danger mt-3">Logout</button>
+    </div>
+
+    <!-- Include Bootstrap JS -->
+    <script src="/node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Include custom JS for the popup message and logout -->
+    <script>
+        window.onload = function() {
+            // Display a popup message with the user level and username
+            alert("Welcome, <%= user.username %>! Your role is <%= user.role %>.");
+        };
+
+        function logout() {
+            window.location.href = '/logout';
+        }
+    </script>
+</body>
+</html>
