@@ -10,6 +10,11 @@
         <div class="row justify-content-center">
             <div class="col-md-4">
                 <h2 class="text-center">Login</h2>
+                <% if (error) { %>
+                    <div class="alert alert-danger" role="alert">
+                        <%= error %>
+                    </div>
+                <% } %>
                 <form action="/login" method="post">
                     <div class="form-group">
                         <label for="username">Username:</label>
@@ -25,7 +30,7 @@
                     </div>
                     <button type="submit" class="btn btn-primary btn-block">Login</button>
                 </form>
-                <a href="/" class="btn btn-link btn-block">Back to Home</a>
+                <a href="/index" class="btn btn-link btn-block">Back to Home</a>
             </div>
         </div>
     </div>

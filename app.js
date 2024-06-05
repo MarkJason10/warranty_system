@@ -17,6 +17,16 @@ app.use(session({
     saveUninitialized: false
 }));
 
+
+app.get('/index', (req, res) => {
+    // Handle the request to /index
+    res.render('index'); // or any other appropriate response
+});
+
+app.get('/dashboard', isAuthenticated, (req, res) => {
+    res.render('dashboard', { user: req.session.user });
+});
+
 // Middleware to check if user is authenticated
 function isAuthenticated(req, res, next) {
     if (req.session.user) {
@@ -25,30 +35,21 @@ function isAuthenticated(req, res, next) {
     res.redirect('/login');
 }
 
-// Middleware to check user roles
-function checkRole(role) {
-    return (req, res, next) => {
-        if (req.session.user && req.session.user.role === role) {
-            return next();
-        }
-        res.status(403).send('Forbidden');
-    };
-}
-
 // Routes
 
 app.get('/', (req, res) => {
-    res.render('index');
+    res.redirect('/login');
 });
 
 app.get('/login', (req, res) => {
-    res.render('login');
+    res.render('login', { error: req.session.error }); // Pass error message to login template
+    req.session.error = null; // Clear error message after displaying it
 });
 
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
     console.log(`Attempting login for username: ${username}`);
-    
+
     connection.query('SELECT * FROM users WHERE username = ?', [username], (err, results) => {
         if (err) {
             console.error(`Database query error: ${err}`);
@@ -57,6 +58,12 @@ app.post('/login', (req, res) => {
 
         if (results.length > 0) {
             const user = results[0];
+
+            if (!password || !user.password) {
+                req.session.error = 'Password or username is undefined'; // Set error message
+                return res.redirect('/login'); // Redirect with error message
+            }
+
             bcrypt.compare(password, user.password, (err, match) => {
                 if (err) {
                     console.error(`Bcrypt error: ${err}`);
@@ -66,15 +73,20 @@ app.post('/login', (req, res) => {
                 if (match) {
                     req.session.user = user;
                     console.log(`Login successful for username: ${username}`);
-                    return res.redirect('/dashboard');
+
+                    if (user.first_login) {
+                        return res.redirect('/change-password');
+                    } else {
+                        return res.redirect('/dashboard');
+                    }
                 } else {
-                    console.log(`Invalid password for username: ${username}`);
-                    return res.send('Invalid username or password');
+                    req.session.error = 'Invalid username or password'; // Set error message
+                    return res.redirect('/login'); // Redirect with error message
                 }
             });
         } else {
-            console.log(`No user found with username: ${username}`);
-            return res.send('Invalid username or password');
+            req.session.error = 'Invalid username or password'; // Set error message
+            return res.redirect('/login'); // Redirect with error message
         }
     });
 });
@@ -83,49 +95,18 @@ app.get('/dashboard', isAuthenticated, (req, res) => {
     res.render('dashboard', { user: req.session.user });
 });
 
-// Ensure only superadmins can access the registration form
-app.get('/register', [isAuthenticated, checkRole('superadmin')], (req, res) => {
-    res.render('register');
-});
 
-// Handle the registration form submission
-app.post('/register', [isAuthenticated, checkRole('superadmin')], (req, res) => {
-    const { username, password, role } = req.body;
-    bcrypt.hash(password, 10, (err, hash) => {
-        if (err) throw err;
-        connection.query(
-            'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
-            [username, hash, role],
-            (err, results) => {
-                if (err) throw err;
-                res.send('User registered successfully! <a href="/register">Register another user</a>');
-            }
-        );
-    });
-});
-
-
-
-
-// Route examples for different roles
-app.get('/superadmin', [isAuthenticated, checkRole('superadmin')], (req, res) => {
-    res.send('Superadmin page');
-});
-
-app.get('/admin', [isAuthenticated, checkRole('admin')], (req, res) => {
-    res.send('Admin page');
-});
-
-app.get('/staff', [isAuthenticated, checkRole('staff')], (req, res) => {
-    res.send('Staff page');
-});
-
+// Logout route
 app.get('/logout', (req, res) => {
     req.session.destroy((err) => {
-        if (err) throw err;
+        if (err) {
+            console.error(`Error destroying session: ${err}`);
+            return res.status(500).send('Internal Server Error');
+        }
         res.redirect('/login');
     });
 });
+
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
